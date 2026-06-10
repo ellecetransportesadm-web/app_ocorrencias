@@ -152,13 +152,13 @@
   </div>
 
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyVhc4Nq3Coni-4tH6sykSOv9QOPkNR1IJC5Cmlybt5xMjWpi6caIqLmc_h4_m_xYnJLQ/exec";
+    // CERTIFIQUE-SE DE ATUALIZAR ESSE LINK COM A NOVA URL GERADA NO PASSO 1
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzhMi7I6uDpGBucYer6g3mXDA4OOb9ywSwFzjUq-qcUhCXOB2PHUsFkMp3_OewKCAN_4A/exec";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
 
     window.addEventListener('DOMContentLoaded', async () => {
-      // CORREÇÃO ANTI-RESÍDUO: Se não houver uma ID de viagem real aberta, limpa a memória local imediatamente
       let checkId = localStorage.getItem('idViagemBauducco');
       if (!checkId || checkId === "null" || checkId === "") {
         localStorage.clear();
@@ -170,7 +170,6 @@
 
     async function carregarListaPlacasDeCadastro() {
       try {
-        // CORREÇÃO DE REDIRECIONAMENTO (CORS DO GOOGLE): Adicionado o "redirect: 'follow'"
         const response = await fetch(WEB_APP_URL, { 
           method: "GET",
           redirect: "follow" 
@@ -239,7 +238,6 @@
         document.getElementById('mNF').readOnly = true;
         document.getElementById('txtSubtitulo').innerText = "Atualizando dados para o ID " + idSalva;
       } else {
-        // Zera tudo na tela se não houver viagem ativa
         document.getElementById('mPlaca').disabled = false;
         document.getElementById('mDT').readOnly = false;
         document.getElementById('mNF').readOnly = false;
@@ -273,7 +271,7 @@
         idViagem: idViagem,
         placa: placaEnvio,
         motorista: document.getElementById('mNome').value,
-        typeVeiculo: document.getElementById('mVeiculo').value, 
+        tipoVeiculo: document.getElementById('mVeiculo').value, 
         telefone: document.getElementById('mTelefone').value,
         dtRoteiro: dtEnvio,
         notaFiscal: nfEnvio,
@@ -288,7 +286,7 @@
         const response = await fetch(WEB_APP_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          redirect: "follow", // Força o envio a seguir o redirecionamento do Google
+          redirect: "follow",
           body: JSON.stringify(payload)
         });
 
@@ -297,7 +295,7 @@
         if (resultado.status === "SUCCESS") {
           alert("Status '" + status + "' registrado com sucesso!");
 
-          // CORREÇÃO TEXTUAL AMPLIADA: Limpa tudo se encontrar a tag de fechar ou palavras-chave de término
+          // EXECUTA LIMPEZA TOTAL AO CONCLUIR
           if(status.includes("Encerrar ID") || status.includes("finalizada") || status.includes("Devolvido")) {
             localStorage.clear();
             
