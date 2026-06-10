@@ -61,7 +61,7 @@
       font-size: 14px; font-family: inherit; outline: none; background-color: #f8fafc;
     }
     .form-control:focus { border-color: var(--primary); background-color: #fff; }
-    .form-control[readonly] { background-color: #e2e8f0; color: #475569; font-weight: 500; cursor: not-allowed; }
+    .form-control[readonly], .form-control:disabled { background-color: #e2e8f0; color: #475569; font-weight: 500; cursor: not-allowed; }
     
     .btn-submit {
       width: 100%; background-color: var(--primary); color: white; border: none;
@@ -152,20 +152,29 @@
   </div>
 
   <script>
-    // COLOQUE A SUA NOVA URL GERADA NO GOOGLE APPS SCRIPT ATUALIZADO AQUI
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxb9O1kdqKeccsQ2LYPLbPZsJiaS54UmXzFHi6QfcovFlnhr9gGTl7hGWWFZ4W1xep6Ww/exec";
+    // DEPOIS DE FAZER O PASSO 2, INSIRA A SUA URL NOVA DA PLANILHA AQUI:
+    const WEB_APP_URL = "SUA_NOVA_URL_DO_APPS_SCRIPT_AQUI";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
 
     window.addEventListener('DOMContentLoaded', async () => {
+      // Garante que se o navegador não tiver viagem rodando, o banco interno zera
+      let checkId = localStorage.getItem('idViagemBauducco');
+      if (!checkId || checkId === "null" || checkId === "") {
+        localStorage.clear();
+      }
+      
       await carregarListaPlacasDeCadastro();
       recuperarJornadaAtiva();
     });
 
     async function carregarListaPlacasDeCadastro() {
       try {
-        const response = await fetch(WEB_APP_URL);
+        const response = await fetch(WEB_APP_URL, { 
+          method: "GET",
+          redirect: "follow" 
+        });
         listaMotoristasCadastrados = await response.json();
         
         const selectPlaca = document.getElementById('mPlaca');
@@ -179,6 +188,7 @@
         });
       } catch (err) {
         document.getElementById('mPlaca').innerHTML = '<option value="">Erro ao carregar frota</option>';
+        console.error(err);
       }
     }
 
@@ -214,18 +224,30 @@
 
     function recuperarJornadaAtiva() {
       let idSalva = localStorage.getItem('idViagemBauducco');
-      if(idSalva) {
+      if(idSalva && idSalva !== "null" && idSalva !== "") {
         document.getElementById('badgeViagem').innerText = "ID Viagem Ativa: " + idSalva;
         document.getElementById('badgeViagem').classList.add('active');
+        
         document.getElementById('mPlaca').value = localStorage.getItem('placaBauducco');
         autocompletarDadosMotorista();
+        
         document.getElementById('mDT').value = localStorage.getItem('dtBauducco');
         document.getElementById('mNF').value = localStorage.getItem('nfBauducco');
         
-        document.getElementById('mPlaca').setAttribute('readonly', 'true');
-        document.getElementById('mDT').setAttribute('readonly', 'true');
-        document.getElementById('mNF').setAttribute('readonly', 'true');
+        document.getElementById('mPlaca').disabled = true;
+        document.getElementById('mDT').readOnly = true;
+        document.getElementById('mNF').readOnly = true;
         document.getElementById('txtSubtitulo').innerText = "Atualizando dados para o ID " + idSalva;
+      } else {
+        // Modo tela em branco: liberação completa de campos
+        document.getElementById('mPlaca').disabled = false;
+        document.getElementById('mDT').readOnly = false;
+        document.getElementById('mNF').readOnly = false;
+        document.getElementById('mDT').value = "";
+        document.getElementById('mNF').value = "";
+        document.getElementById('mNome').value = "";
+        document.getElementById('mVeiculo').value = "";
+        document.getElementById('mTelefone').value = "";
       }
     }
 
@@ -246,55 +268,78 @@
         localStorage.setItem('nfBauducco', document.getElementById('mNF').value);
       }
 
-      // Converte os dados estruturados em URL-Encoded Texto Puro limpo para evitar CORS no celular
-      const formData = new URLSearchParams();
-      formData.append("idViagem", idViagem);
-      formData.append("placa", localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value);
-      formData.append("motorista", document.getElementById('mNome').value);
-      formData.append("tipoVeiculo", document.getElementById('mVeiculo').value);
-      formData.append("telefone", document.getElementById('mTelefone').value);
-      formData.append("dtRoteiro", localStorage.getItem('dtBauducco') || document.getElementById('mDT').value);
-      formData.append("notaFiscal", localStorage.getItem('nfBauducco') || document.getElementById('mNF').value);
-      formData.append("tipoOcorrencia", status);
-      formData.append("descricao", document.getElementById('mDescricao').value);
-      formData.append("fotoData", fotoBase64 || "");
-      formData.append("fotoNome", fotoNome);
-      formData.append("fotoMime", fotoMime);
+      const placaEnvio = localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value;
+      const dtEnvio = localStorage.getItem('dtBauducco') || document.getElementById('mDT').value;
+      const nfEnvio = localStorage.getItem('nfBauducco') || document.getElementById('mNF').value;
+
+      const payload = {
+        idViagem: idViagem,
+        placa: placaEnvio,
+        motorista: document.getElementById('mNome').value,
+        tipoVeiculo: document.getElementById('mVeiculo').value, 
+        telefone: document.getElementById('mTelefone').value,
+        dtRoteiro: dtEnvio,
+        notaFiscal: nfEnvio,
+        tipoOcorrencia: status,
+        descricao: document.getElementById('mDescricao').value,
+        fotoData: fotoBase64 || "",
+        fotoNome: fotoNome,
+        fotoMime: fotoMime
+      };
 
       try {
-        // Envio seguro no-cors compatível com a função e.parameter do Google
-        await fetch(WEB_APP_URL, {
+        const response = await fetch(WEB_APP_URL, {
           method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: formData.toString()
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow",
+          body: JSON.stringify(payload)
         });
 
-        alert("Status '" + status + "' registrado com sucesso!");
+        const resultado = await response.json();
 
-        if(status.includes("Encerrar ID")) {
-          localStorage.clear();
-          document.getElementById('jornadaForm').reset();
-          document.getElementById('mPlaca').removeAttribute('readonly');
-          document.getElementById('mDT').removeAttribute('readonly');
-          document.getElementById('mNF').removeAttribute('readonly');
-          document.getElementById('badgeViagem').innerText = "Sem Viagem Aberta";
-          document.getElementById('badgeViagem').classList.remove('active');
-          document.getElementById('txtSubtitulo').innerText = "Selecione sua placa para iniciar";
-          document.getElementById('mNome').value = "";
-          document.getElementById('mVeiculo').value = "";
-          document.getElementById('mTelefone').value = "";
+        if (resultado.status === "SUCCESS") {
+          alert("Status '" + status + "' registrado com sucesso!");
+
+          // CONDIÇÃO DE TELA EM BRANCO (FIM DE JORNADA): Limpa memória local e reseta os elementos visuais
+          if(status.includes("Encerrar ID")) {
+            localStorage.clear();
+            
+            // Destrava campos bloqueados
+            document.getElementById('mPlaca').disabled = false;
+            document.getElementById('mDT').readOnly = false;
+            document.getElementById('mNF').readOnly = false;
+            
+            // Apaga todo o formulário
+            document.getElementById('jornadaForm').reset();
+            
+            // Restaura o topo do app para o estado inicial
+            document.getElementById('badgeViagem').innerText = "Sem Viagem Aberta";
+            document.getElementById('badgeViagem').classList.remove('active');
+            document.getElementById('txtSubtitulo').innerText = "Selecione sua placa para iniciar";
+            
+            // Garante que campos somente leitura voltem a ficar vazios
+            document.getElementById('mNome').value = "";
+            document.getElementById('mVeiculo').value = "";
+            document.getElementById('mTelefone').value = "";
+            document.getElementById('mDT').value = "";
+            document.getElementById('mNF').value = "";
+          } else {
+            recuperarJornadaAtiva();
+          }
+
+          // Limpezas de segurança para anexo de imagens e comentários por lote
+          document.getElementById('mDescricao').value = "";
+          document.getElementById('mFoto').value = "";
+          document.getElementById('imgPreview').style.display = 'none';
+          fotoBase64 = null;
+          fotoNome = "";
+          fotoMime = "";
         } else {
-          recuperarJornadaAtiva();
+          alert("Erro interno do Google ao salvar: " + resultado.message);
         }
 
-        document.getElementById('mDescricao').value = "";
-        document.getElementById('mFoto').value = "";
-        document.getElementById('imgPreview').style.display = 'none';
-        fotoBase64 = null;
-
       } catch (err) {
-        alert("Erro de conexão ao enviar. Verifique o sinal de internet.");
+        alert("Erro de comunicação. Verifique a internet e envie novamente.");
       } finally {
         btn.disabled = false;
         btn.innerText = "Registrar Status";
