@@ -152,12 +152,18 @@
   </div>
 
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw4RRuM8r0bMEZnrxtY8c7vhC7QjbRSNzL2IX4Ct-qDV2Rq87ryHW3_D1_T-_ZDrVrO2A/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxn1EJI9zVSk4OYu7NhGpAxDkAFdgN7JceO3ekcjVFCjQf2bSX66XeMjbs3vGMCjjIZOQ/exec";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
 
     window.addEventListener('DOMContentLoaded', async () => {
+      // Limpa dados fantasmas velhos que ficaram travados no seu navegador antes do ajuste
+      let checkId = localStorage.getItem('idViagemBauducco');
+      if (!checkId) {
+        localStorage.clear();
+      }
+      
       await carregarListaPlacasDeCadastro();
       recuperarJornadaAtiva();
     });
@@ -217,18 +223,20 @@
         document.getElementById('badgeViagem').innerText = "ID Viagem Ativa: " + idSalva;
         document.getElementById('badgeViagem').classList.add('active');
         
-        // Aplica o valor salvo antes de travar o campo
         document.getElementById('mPlaca').value = localStorage.getItem('placaBauducco');
         autocompletarDadosMotorista();
         
         document.getElementById('mDT').value = localStorage.getItem('dtBauducco');
         document.getElementById('mNF').value = localStorage.getItem('nfBauducco');
         
-        // CORREÇÃO LOGÍSTICA: O select precisa de 'disabled' para o motorista não conseguir adulterar a rota no meio do caminho
         document.getElementById('mPlaca').disabled = true;
         document.getElementById('mDT').readOnly = true;
         document.getElementById('mNF').readOnly = true;
         document.getElementById('txtSubtitulo').innerText = "Atualizando dados para o ID " + idSalva;
+      } else {
+        // Força a limpeza visual se não houver ID ativa gravada
+        document.getElementById('mDT').value = "";
+        document.getElementById('mNF').value = "";
       }
     }
 
@@ -249,7 +257,6 @@
         localStorage.setItem('nfBauducco', document.getElementById('mNF').value);
       }
 
-      // CORREÇÃO: Garante a extração correta mesmo se as tags do formulário estiverem congeladas em modo leitura
       const placaEnvio = localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value;
       const dtEnvio = localStorage.getItem('dtBauducco') || document.getElementById('mDT').value;
       const nfEnvio = localStorage.getItem('nfBauducco') || document.getElementById('mNF').value;
@@ -258,7 +265,7 @@
         idViagem: idViagem,
         placa: placaEnvio,
         motorista: document.getElementById('mNome').value,
-        tipoVeiculo: document.getElementById('mVeiculo').value,
+        typeVeiculo: document.getElementById('mVeiculo').value, // corrigido ortografia interna do parâmetro para bater com o Script
         telefone: document.getElementById('mTelefone').value,
         dtRoteiro: dtEnvio,
         notaFiscal: nfEnvio,
@@ -281,32 +288,29 @@
         if (resultado.status === "SUCCESS") {
           alert("Status '" + status + "' registrado com sucesso!");
 
-          // CONCLUÍDO / ENCERRAR CASO: Executa a limpeza total e destrava o layout
-          if(status.includes("(Encerrar ID)")) {
+          // CORREÇÃO CIRÚRGICA DE ENCERRAMENTO: Verifica textualmente qualquer um dos 3 status de término de rota
+          if(status.includes("Encerrar ID") || status.includes("finalizada") || status.includes("Devolvido")) {
             localStorage.clear();
             
-            // Destrava os elementos no HTML
             document.getElementById('mPlaca').disabled = false;
             document.getElementById('mDT').readOnly = false;
             document.getElementById('mNF').readOnly = false;
             
-            // Limpa o formulário por completo
             document.getElementById('jornadaForm').reset();
             
-            // Reseta cabeçalhos informativos superiores
             document.getElementById('badgeViagem').innerText = "Sem Viagem Aberta";
             document.getElementById('badgeViagem').classList.remove('active');
             document.getElementById('txtSubtitulo').innerText = "Selecione sua placa para iniciar";
             
-            // Zera campos de autocompletar ocultos
             document.getElementById('mNome').value = "";
             document.getElementById('mVeiculo').value = "";
             document.getElementById('mTelefone').value = "";
+            document.getElementById('mDT').value = "";
+            document.getElementById('mNF').value = "";
           } else {
             recuperarJornadaAtiva();
           }
 
-          // Limpa campos específicos de observação e foto após o envio do lote
           document.getElementById('mDescricao').value = "";
           document.getElementById('mFoto').value = "";
           document.getElementById('imgPreview').style.display = 'none';
@@ -318,7 +322,7 @@
         }
 
       } catch (err) {
-        alert("Erro de comunicação. Verifique a internet e tente enviar novamente.");
+        alert("Erro de comunicação. Verifique a internet.");
       } finally {
         btn.disabled = false;
         btn.innerText = "Registrar Status";
