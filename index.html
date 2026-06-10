@@ -152,8 +152,8 @@
   </div>
 
   <script>
-    // COLOQUE A SUA URL GERADA NO GOOGLE APPS SCRIPT ATUALIZADO AQUI
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwVedR7IvjP2rSJEtHK3ty0BmhyUCKFYBTY8SmEj4E9AL-cNo9KzNolLaC6roK362RMqA/exec";
+    // COLOQUE A SUA NOVA URL GERADA NO GOOGLE APPS SCRIPT ATUALIZADO AQUI
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz9z4bxnjH3hQqQIDZNs-PF2sBUanvBbfY5AT2SFk2VUtRLd8ZSCeoy2j1ieDpfTdzleg/exec";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
@@ -222,7 +222,6 @@
         document.getElementById('mDT').value = localStorage.getItem('dtBauducco');
         document.getElementById('mNF').value = localStorage.getItem('nfBauducco');
         
-        // AJUSTE SEGURO: Mudado para readonly para que o formulário consiga transmitir os valores travados
         document.getElementById('mPlaca').setAttribute('readonly', 'true');
         document.getElementById('mDT').setAttribute('readonly', 'true');
         document.getElementById('mNF').setAttribute('readonly', 'true');
@@ -247,7 +246,7 @@
         localStorage.setItem('nfBauducco', document.getElementById('mNF').value);
       }
 
-      // AJUSTE SEGURO: Converte os dados para URLSearchParams para evitar bloqueios de CORS e rodar limpo no Sheets
+      // Converte os dados estruturados em URL-Encoded Texto Puro limpo para evitar CORS no celular
       const formData = new URLSearchParams();
       formData.append("idViagem", idViagem);
       formData.append("placa", localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value);
@@ -263,13 +262,15 @@
       formData.append("fotoMime", fotoMime);
 
       try {
+        // Envio seguro no-cors compatível com a função e.parameter do Google
         await fetch(WEB_APP_URL, {
           method: "POST",
+          mode: "no-cors",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: formData.toString()
         });
 
-        alert("Status '" + status + "' registrado na central!");
+        alert("Status '" + status + "' registrado com sucesso!");
 
         if(status.includes("Encerrar ID")) {
           localStorage.clear();
@@ -293,7 +294,7 @@
         fotoBase64 = null;
 
       } catch (err) {
-        alert("Erro ao enviar o registro. Verifique a sua conexão de internet.");
+        alert("Erro de conexão ao enviar. Verifique o sinal de internet.");
       } finally {
         btn.disabled = false;
         btn.innerText = "Registrar Status";
