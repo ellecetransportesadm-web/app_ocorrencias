@@ -152,15 +152,15 @@
   </div>
 
   <script>
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyDsqTBSQ42hRqqo9CaaESQ8BGM1S8C21LO4fXnaYwjzEqLUze8D11swCmEQk-Xs_cqfQ/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxn1EJI9zVSk4OYu7NhGpAxDkAFdgN7JceO3ekcjVFCjQf2bSX66XeMjbs3vGMCjjIZOQ/exec";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
 
     window.addEventListener('DOMContentLoaded', async () => {
-      // Limpa dados fantasmas velhos que ficaram travados no seu navegador antes do ajuste
+      // CORREÇÃO ANTI-RESÍDUO: Se não houver uma ID de viagem real aberta, limpa a memória local imediatamente
       let checkId = localStorage.getItem('idViagemBauducco');
-      if (!checkId) {
+      if (!checkId || checkId === "null" || checkId === "") {
         localStorage.clear();
       }
       
@@ -170,7 +170,11 @@
 
     async function carregarListaPlacasDeCadastro() {
       try {
-        const response = await fetch(WEB_APP_URL);
+        // CORREÇÃO DE REDIRECIONAMENTO (CORS DO GOOGLE): Adicionado o "redirect: 'follow'"
+        const response = await fetch(WEB_APP_URL, { 
+          method: "GET",
+          redirect: "follow" 
+        });
         listaMotoristasCadastrados = await response.json();
         
         const selectPlaca = document.getElementById('mPlaca');
@@ -184,6 +188,7 @@
         });
       } catch (err) {
         document.getElementById('mPlaca').innerHTML = '<option value="">Erro ao carregar frota</option>';
+        console.error(err);
       }
     }
 
@@ -219,7 +224,7 @@
 
     function recuperarJornadaAtiva() {
       let idSalva = localStorage.getItem('idViagemBauducco');
-      if(idSalva) {
+      if(idSalva && idSalva !== "null" && idSalva !== "") {
         document.getElementById('badgeViagem').innerText = "ID Viagem Ativa: " + idSalva;
         document.getElementById('badgeViagem').classList.add('active');
         
@@ -234,7 +239,10 @@
         document.getElementById('mNF').readOnly = true;
         document.getElementById('txtSubtitulo').innerText = "Atualizando dados para o ID " + idSalva;
       } else {
-        // Força a limpeza visual se não houver ID ativa gravada
+        // Zera tudo na tela se não houver viagem ativa
+        document.getElementById('mPlaca').disabled = false;
+        document.getElementById('mDT').readOnly = false;
+        document.getElementById('mNF').readOnly = false;
         document.getElementById('mDT').value = "";
         document.getElementById('mNF').value = "";
       }
@@ -265,7 +273,7 @@
         idViagem: idViagem,
         placa: placaEnvio,
         motorista: document.getElementById('mNome').value,
-        typeVeiculo: document.getElementById('mVeiculo').value, // corrigido ortografia interna do parâmetro para bater com o Script
+        typeVeiculo: document.getElementById('mVeiculo').value, 
         telefone: document.getElementById('mTelefone').value,
         dtRoteiro: dtEnvio,
         notaFiscal: nfEnvio,
@@ -280,6 +288,7 @@
         const response = await fetch(WEB_APP_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
+          redirect: "follow", // Força o envio a seguir o redirecionamento do Google
           body: JSON.stringify(payload)
         });
 
@@ -288,7 +297,7 @@
         if (resultado.status === "SUCCESS") {
           alert("Status '" + status + "' registrado com sucesso!");
 
-          // CORREÇÃO CIRÚRGICA DE ENCERRAMENTO: Verifica textualmente qualquer um dos 3 status de término de rota
+          // CORREÇÃO TEXTUAL AMPLIADA: Limpa tudo se encontrar a tag de fechar ou palavras-chave de término
           if(status.includes("Encerrar ID") || status.includes("finalizada") || status.includes("Devolvido")) {
             localStorage.clear();
             
