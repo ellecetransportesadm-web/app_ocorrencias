@@ -61,7 +61,7 @@
       font-size: 14px; font-family: inherit; outline: none; background-color: #f8fafc;
     }
     .form-control:focus { border-color: var(--primary); background-color: #fff; }
-    .form-control[readonly] { background-color: #e2e8f0; color: #475569; font-weight: 500; cursor: not-allowed; }
+    .form-control[readonly], .form-control:disabled { background-color: #e2e8f0; color: #475569; font-weight: 500; cursor: not-allowed; }
     
     .btn-submit {
       width: 100%; background-color: var(--primary); color: white; border: none;
@@ -152,8 +152,7 @@
   </div>
 
   <script>
-    // COLOQUE A SUA NOVA URL GERADA NO GOOGLE APPS SCRIPT ATUALIZADO AQUI
-    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxn1EJI9zVSk4OYu7NhGpAxDkAFdgN7JceO3ekcjVFCjQf2bSX66XeMjbs3vGMCjjIZOQ/exec";
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw4RRuM8r0bMEZnrxtY8c7vhC7QjbRSNzL2IX4Ct-qDV2Rq87ryHW3_D1_T-_ZDrVrO2A/exec";
 
     let listaMotoristasCadastrados = [];
     let fotoBase64 = null, fotoNome = "", fotoMime = "";
@@ -217,14 +216,18 @@
       if(idSalva) {
         document.getElementById('badgeViagem').innerText = "ID Viagem Ativa: " + idSalva;
         document.getElementById('badgeViagem').classList.add('active');
+        
+        // Aplica o valor salvo antes de travar o campo
         document.getElementById('mPlaca').value = localStorage.getItem('placaBauducco');
         autocompletarDadosMotorista();
+        
         document.getElementById('mDT').value = localStorage.getItem('dtBauducco');
         document.getElementById('mNF').value = localStorage.getItem('nfBauducco');
         
-        document.getElementById('mPlaca').setAttribute('readonly', 'true');
-        document.getElementById('mDT').setAttribute('readonly', 'true');
-        document.getElementById('mNF').setAttribute('readonly', 'true');
+        // CORREÇÃO LOGÍSTICA: O select precisa de 'disabled' para o motorista não conseguir adulterar a rota no meio do caminho
+        document.getElementById('mPlaca').disabled = true;
+        document.getElementById('mDT').readOnly = true;
+        document.getElementById('mNF').readOnly = true;
         document.getElementById('txtSubtitulo').innerText = "Atualizando dados para o ID " + idSalva;
       }
     }
@@ -246,15 +249,19 @@
         localStorage.setItem('nfBauducco', document.getElementById('mNF').value);
       }
 
-      // Envia como JSON puro, contornando qualquer limite do tamanho de anexo
+      // CORREÇÃO: Garante a extração correta mesmo se as tags do formulário estiverem congeladas em modo leitura
+      const placaEnvio = localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value;
+      const dtEnvio = localStorage.getItem('dtBauducco') || document.getElementById('mDT').value;
+      const nfEnvio = localStorage.getItem('nfBauducco') || document.getElementById('mNF').value;
+
       const payload = {
         idViagem: idViagem,
-        placa: localStorage.getItem('placaBauducco') || document.getElementById('mPlaca').value,
+        placa: placaEnvio,
         motorista: document.getElementById('mNome').value,
         tipoVeiculo: document.getElementById('mVeiculo').value,
         telefone: document.getElementById('mTelefone').value,
-        dtRoteiro: localStorage.getItem('dtBauducco') || document.getElementById('mDT').value,
-        notaFiscal: localStorage.getItem('nfBauducco') || document.getElementById('mNF').value,
+        dtRoteiro: dtEnvio,
+        notaFiscal: nfEnvio,
         tipoOcorrencia: status,
         descricao: document.getElementById('mDescricao').value,
         fotoData: fotoBase64 || "",
@@ -265,7 +272,7 @@
       try {
         const response = await fetch(WEB_APP_URL, {
           method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" }, // Mantém formato texto aceito pelo CORS
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify(payload)
         });
 
@@ -274,15 +281,24 @@
         if (resultado.status === "SUCCESS") {
           alert("Status '" + status + "' registrado com sucesso!");
 
-          if(status.includes("Encerrar ID")) {
+          // CONCLUÍDO / ENCERRAR CASO: Executa a limpeza total e destrava o layout
+          if(status.includes("(Encerrar ID)")) {
             localStorage.clear();
+            
+            // Destrava os elementos no HTML
+            document.getElementById('mPlaca').disabled = false;
+            document.getElementById('mDT').readOnly = false;
+            document.getElementById('mNF').readOnly = false;
+            
+            // Limpa o formulário por completo
             document.getElementById('jornadaForm').reset();
-            document.getElementById('mPlaca').removeAttribute('readonly');
-            document.getElementById('mDT').removeAttribute('readonly');
-            document.getElementById('mNF').removeAttribute('readonly');
+            
+            // Reseta cabeçalhos informativos superiores
             document.getElementById('badgeViagem').innerText = "Sem Viagem Aberta";
             document.getElementById('badgeViagem').classList.remove('active');
             document.getElementById('txtSubtitulo').innerText = "Selecione sua placa para iniciar";
+            
+            // Zera campos de autocompletar ocultos
             document.getElementById('mNome').value = "";
             document.getElementById('mVeiculo').value = "";
             document.getElementById('mTelefone').value = "";
@@ -290,10 +306,13 @@
             recuperarJornadaAtiva();
           }
 
+          // Limpa campos específicos de observação e foto após o envio do lote
           document.getElementById('mDescricao').value = "";
           document.getElementById('mFoto').value = "";
           document.getElementById('imgPreview').style.display = 'none';
           fotoBase64 = null;
+          fotoNome = "";
+          fotoMime = "";
         } else {
           alert("Erro interno do Google ao salvar: " + resultado.message);
         }
