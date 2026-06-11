@@ -9,12 +9,13 @@
     .navbar { display: flex; background: #2c3e50; padding: 10px; justify-content: center; gap: 15px; }
     .nav-btn { background: #34495e; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; border-radius: 4px; }
     .nav-btn.active { background: #27ae60; }
-    .container { max-width: 1000px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .container { max-width: 1100px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .page { display: none; }
     .page.active { display: block; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
     input, select, button { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; font-size: 15px; }
+    input:disabled, select:disabled { background-color: #e9ecef; color: #495057; cursor: not-allowed; }
     button { background: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
     button:hover { background: #3498db; }
     .btn-excel { background-color: #27ae60; width: auto; margin-bottom: 15px; display: inline-block; }
@@ -22,7 +23,6 @@
     th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
     th { background-color: #2c3e50; color: white; }
     tr:hover { background-color: #f1f1f1; cursor: pointer; }
-    .hidden { display: none; }
     #preview { max-width: 150px; margin-top: 10px; display: none; border-radius: 4px; border: 1px solid #ddd; }
     .loading { font-weight: bold; color: #e67e22; text-align: center; padding: 10px; display: none; }
   </style>
@@ -39,36 +39,20 @@
     <div id="pag-motorista" class="page active">
       <h2>Registro de Ocorrência (Motorista)</h2>
       
-      <div class="form-group">
-        <label>Tipo de Operação:</label>
-        <select id="tipoRegistro" onchange="alternarCamposMotorista()">
-          <option value="novo">Nova Ocorrência</option>
-          <option value="existente">Atualizar Caso Existente</option>
-        </select>
-      </div>
-
-      <div id="campoCasoExistente" class="form-group hidden">
-        <label>Selecione o ID do Caso:</label>
-        <select id="listaCasos"></select>
-      </div>
-
       <div id="camposNovos">
         <div class="form-group">
-          <label>Nome do Motorista:</label>
-          <input type="text" id="motorista" placeholder="Nome Completo">
+          <label>Selecione a Placa do Veículo:</label>
+          <select id="placa" onchange="autoPreencherMotorista()">
+            <option value="">Carregando placas disponíveis...</option>
+          </select>
         </div>
         <div class="form-group">
-          <label>Placa do Veículo:</label>
-          <input type="text" id="placa" placeholder="ABC1D23">
+          <label>Nome do Motorista:</label>
+          <input type="text" id="motorista" placeholder="Selecione a placa acima" disabled>
         </div>
         <div class="form-group">
           <label>Tipo de Veículo:</label>
-          <select id="tipoVeiculo">
-            <option value="Toco">Toco</option>
-            <option value="Truck">Truck</option>
-            <option value="Carreta">Carreta</option>
-            <option value="Fiorino/Van">Fiorino / Van</option>
-          </select>
+          <input type="text" id="tipoVeiculo" placeholder="Selecione a placa acima" disabled>
         </div>
         <div class="form-group">
           <label>Número da NF:</label>
@@ -113,12 +97,13 @@
             <th>NF</th>
             <th>Série</th>
             <th>Status</th>
-            <th>Data / Hora</th>
+            <th>Data</th>
+            <th>Hora</th>
             <th>Foto</th>
           </tr>
         </thead>
         <tbody id="corpoTabela">
-          <tr><td colspan="9">Carregando dados...</td></tr>
+          <tr><td colspan="10">Carregando dados...</td></tr>
         </tbody>
       </table>
     </div>
@@ -126,9 +111,10 @@
   </div>
 
   <script>
-    // ⚠️ COLE A SUA URL DA IMPLANTAÇÃO DO GOOGLE AQUI DENTRO DAS ASPAS
-    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbyg1p04Z6u8m6uMXArffn8mYq1J4Y97yBgYykGgyKmwYoaHorPW1LfpyARve1-9x2B8/exec";
+    // URL da API gerada pela implantação do Google Apps Script
+    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbxP7EF0PdP-6kR7HRlgJK9eUNWEmYrUzwySfbgTacJLg2Q-Qo25Kes-5rmga_qm1cQL/exec";
 
+    var listaGlobalMotoristas = []; 
     var fotoBase64 = "";
     var fotoMimeType = "";
     var fotoNomeArquivo = "";
@@ -140,7 +126,7 @@
       if(aba === 'motorista') {
         document.getElementById('pag-motorista').classList.add('active');
         document.querySelector("[onclick*='motorista']").classList.add('active');
-        carregarIdsDisponiveis();
+        carregarListaPlacas();
       } else {
         document.getElementById('pag-pc').classList.add('active');
         document.querySelector("[onclick*='pc']").classList.add('active');
@@ -148,15 +134,51 @@
       }
     }
 
-    function alternarCamposMotorista() {
-      var tipo = document.getElementById('tipoRegistro').value;
-      if (tipo === 'existente') {
-        document.getElementById('campoCasoExistente').classList.remove('hidden');
-        document.getElementById('camposNovos').classList.add('hidden');
-        carregarIdsDisponiveis();
-      } else {
-        document.getElementById('campoCasoExistente').classList.add('hidden');
-        document.getElementById('camposNovos').classList.remove('hidden');
+    // Busca as placas cadastradas na aba "Motoristas" da planilha
+    function carregarListaPlacas() {
+      var urlConsulta = URL_API_GOOGLE + (URL_API_GOOGLE.includes('?') ? '&' : '?') + 'acao=motoristas';
+      
+      fetch(urlConsulta)
+      .then(res => res.json())
+      .then(dados => {
+        if (!dados.motoristas) {
+          console.error("Dados de motoristas não encontrados.");
+          return;
+        }
+        
+        listaGlobalMotoristas = dados.motoristas;
+        var selectPlaca = document.getElementById('placa');
+        selectPlaca.innerHTML = '<option value="">-- Selecione sua Placa --</option>';
+        
+        listaGlobalMotoristas.forEach(function(item) {
+          if (item[0]) { 
+            selectPlaca.innerHTML += '<option value="' + item[0] + '">' + item[0] + '</option>';
+          }
+        });
+      }).catch(err => {
+        console.error("Erro crítico ao carregar placas:", err);
+        document.getElementById('placa').innerHTML = '<option value="">Erro ao carregar placas</option>';
+      });
+    }
+
+    // Executa o auto-preenchimento baseado na placa selecionada (CORRIGIDO)
+    function autoPreencherMotorista() {
+      var placaSelecionada = document.getElementById('placa').value;
+      var inputMotorista = document.getElementById('motorista');
+      var inputVeiculo = document.getElementById('tipoVeiculo');
+      
+      if (!placaSelecionada) {
+        inputMotorista.value = "";
+        inputVeiculo.value = "";
+        return;
+      }
+      
+      // Encontra a linha correspondente do motorista na lista global
+      var cadastroEncontrado = listaGlobalMotoristas.find(item => item[0] === placaSelecionada);
+      
+      if (cadastroEncontrado) {
+        inputMotorista.value = cadastroEncontrado[1]; // Nome
+        inputVeiculo.value = cadastroEncontrado[2];   // Tipo de veículo
       }
     }
 
@@ -176,39 +198,27 @@
       }
     }
 
-    function carregarIdsDisponiveis() {
-      fetch(URL_API_GOOGLE)
-      .then(res => res.json())
-      .then(dados => {
-        var select = document.getElementById('listaCasos');
-        select.innerHTML = '';
-        dados.linhas.forEach(function(linha) {
-          select.innerHTML += '<option value="'+linha[0]+'">'+linha[0]+'</option>';
-        });
-      }).catch(err => console.error("Erro ao carregar IDs:", err));
-    }
-
     function enviarDadosMotorista() {
-      var tipo = document.getElementById('tipoRegistro').value;
-      var payload = { status: document.getElementById('status').value };
+      var payload = {
+        placa: document.getElementById('placa').value,
+        motorista: document.getElementById('motorista').value,
+        tipoVeiculo: document.getElementById('tipoVeiculo').value,
+        notaFiscal: document.getElementById('notaFiscal').value,
+        serie: document.getElementById('serie').value,
+        status: document.getElementById('status').value,
+        fotoBytes: fotoBase64,
+        fotoMime: fotoMimeType,
+        fotoNome: fotoNomeArquivo
+      };
 
-      if (tipo === 'existente') {
-        payload.id = document.getElementById('listaCasos').value;
-      } else {
-        payload.motorista = document.getElementById('motorista').value;
-        payload.placa = document.getElementById('placa').value;
-        payload.tipoVeiculo = document.getElementById('tipoVeiculo').value;
-        payload.notaFiscal = document.getElementById('notaFiscal').value;
-        payload.serie = document.getElementById('serie').value;
-        payload.fotoBytes = fotoBase64;
-        payload.fotoMime = fotoMimeType;
-        payload.fotoNome = fotoNomeArquivo;
+      if (!payload.placa || !payload.notaFiscal) {
+        alert("Por favor, selecione a Placa e preencha o número da Nota Fiscal.");
+        return;
       }
 
       document.getElementById('btnEnviar').disabled = true;
       document.getElementById('loadingForm').style.display = 'block';
 
-      // Envia os dados via rede externa (CORS/Fetch) para a API do Google
       fetch(URL_API_GOOGLE, {
         method: 'POST',
         redirect: 'follow',
@@ -233,6 +243,11 @@
         var tbody = document.getElementById('corpoTabela');
         tbody.innerHTML = '';
         
+        if (!dados.linhas || dados.linhas.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Nenhuma ocorrência localizada.</td></tr>';
+          return;
+        }
+
         for (var i = dados.linhas.length - 1; i >= 0; i--) {
           var linha = dados.linhas[i];
           var tr = document.createElement('tr');
@@ -240,13 +255,14 @@
           (function(dadosLinha){
             tr.onclick = function(e) {
               if(e.target.tagName !== 'A') {
-                alert("Caso: " + dadosLinha[0] + "\nMotorista: " + dadosLinha[1] + "\nNF: " + dadosLinha[4]);
+                alert("Caso: " + dadosLinha[0] + "\nMotorista: " + dadosLinha[1] + "\nNF: " + dadosLinha[4] + "\nStatus: " + dadosLinha[6]);
               }
             };
           })(linha);
 
-          var dataFormatada = new Date(linha[7]).toLocaleString('pt-BR');
-          var colunaFoto = (linha[8] && linha[8].indexOf('http') === 0) ? '<a href="' + linha[8] + '" target="_blank">Abrir link</a>' : '-';
+          var dataExibicao = linha[7] ? linha[7] : '-';
+          var horaExibicao = linha[8] ? linha[8] : '-';
+          var colunaFoto = (linha[9] && linha[9].indexOf('http') === 0) ? '<a href="' + linha[9] + '" target="_blank">Abrir link</a>' : '-';
 
           tr.innerHTML = '<td><strong>' + linha[0] + '</strong></td>' +
                          '<td>' + (linha[1] || '-') + '</td>' +
@@ -254,8 +270,9 @@
                          '<td>' + (linha[3] || '-') + '</td>' +
                          '<td>' + (linha[4] || '-') + '</td>' +
                          '<td>' + (linha[5] || '-') + '</td>' +
-                         '<td>' + linha[6] + '</td>' +
-                         '<td>' + dataFormatada + '</td>' +
+                         '<td>' + (linha[6] || '-') + '</td>' +
+                         '<td>' + dataExibicao + '</td>' +
+                         '<td>' + horaExibicao + '</td>' +
                          '<td>' + colunaFoto + '</td>';
           tbody.appendChild(tr);
         }
@@ -268,8 +285,15 @@
       XLSX.writeFile(livro, "Relatorio_Ocorrencias.xlsx");
     }
 
-    carregarIdsDisponiveis();
-    setInterval(atualizarPainel, 20000); 
+    // Inicializa a lista de placas na primeira carga da página
+    carregarListaPlacas();
+
+    // Mantém a tabela atualizada a cada 20 segundos se a aba ativa for o Painel PC
+    setInterval(function() {
+      if (document.getElementById('pag-pc').classList.contains('active')) {
+        atualizarPainel();
+      }
+    }, 20000);
   </script>
 </body>
 </html>
