@@ -9,13 +9,14 @@
     .navbar { display: flex; background: #2c3e50; padding: 10px; justify-content: center; gap: 15px; }
     .nav-btn { background: #34495e; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; border-radius: 4px; }
     .nav-btn.active { background: #27ae60; }
-    .container { max-width: 1100px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .container { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .page { display: none; }
     .page.active { display: block; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input, select, button { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; font-size: 15px; }
+    input, select, textarea, button { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; font-size: 15px; }
     input:disabled, select:disabled { background-color: #e9ecef; color: #495057; cursor: not-allowed; }
+    textarea { resize: vertical; font-family: inherit; }
     button { background: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
     button:hover { background: #3498db; }
     .btn-excel { background-color: #27ae60; width: auto; margin-bottom: 15px; display: inline-block; }
@@ -79,6 +80,11 @@
         </select>
       </div>
 
+      <div class="form-group">
+        <label>Observações / Detalhes do Caso:</label>
+        <textarea id="observacao" rows="3" placeholder="Insira detalhes da ocorrência (Ex: Cliente recusou por avaria, atraso na descarga, etc.)"></textarea>
+      </div>
+
       <div id="loadingForm" class="loading">Processando e enviando dados, por favor aguarde...</div>
       <button id="btnEnviar" onclick="enviarDadosMotorista()">Enviar Informações</button>
     </div>
@@ -99,11 +105,12 @@
             <th>Status</th>
             <th>Data</th>
             <th>Hora</th>
+            <th>Observação</th>
             <th>Foto</th>
           </tr>
         </thead>
         <tbody id="corpoTabela">
-          <tr><td colspan="10">Carregando dados...</td></tr>
+          <tr><td colspan="11">Carregando dados...</td></tr>
         </tbody>
       </table>
     </div>
@@ -111,8 +118,7 @@
   </div>
 
   <script>
-    // URL da API gerada pela implantação do Google Apps Script
-    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbxP7EF0PdP-6kR7HRlgJK9eUNWEmYrUzwySfbgTacJLg2Q-Qo25Kes-5rmga_qm1cQL/exec";
+    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbyhvPMpQ9vF6ZrDv-0k6iTrUN_UDZNOMb0-YUFK2GD58Ki9ePQFT3h8OAxeE6E3b-Be/exec";
 
     var listaGlobalMotoristas = []; 
     var fotoBase64 = "";
@@ -134,7 +140,6 @@
       }
     }
 
-    // Busca as placas cadastradas na aba "Motoristas" da planilha
     function carregarListaPlacas() {
       var urlConsulta = URL_API_GOOGLE + (URL_API_GOOGLE.includes('?') ? '&' : '?') + 'acao=motoristas';
       
@@ -161,7 +166,6 @@
       });
     }
 
-    // Executa o auto-preenchimento baseado na placa selecionada (CORRIGIDO)
     function autoPreencherMotorista() {
       var placaSelecionada = document.getElementById('placa').value;
       var inputMotorista = document.getElementById('motorista');
@@ -173,12 +177,11 @@
         return;
       }
       
-      // Encontra a linha correspondente do motorista na lista global
       var cadastroEncontrado = listaGlobalMotoristas.find(item => item[0] === placaSelecionada);
       
       if (cadastroEncontrado) {
-        inputMotorista.value = cadastroEncontrado[1]; // Nome
-        inputVeiculo.value = cadastroEncontrado[2];   // Tipo de veículo
+        inputMotorista.value = cadastroEncontrado[1]; 
+        inputVeiculo.value = cadastroEncontrado[2];   
       }
     }
 
@@ -206,6 +209,7 @@
         notaFiscal: document.getElementById('notaFiscal').value,
         serie: document.getElementById('serie').value,
         status: document.getElementById('status').value,
+        observacao: document.getElementById('observacao').value,
         fotoBytes: fotoBase64,
         fotoMime: fotoMimeType,
         fotoNome: fotoNomeArquivo
@@ -244,7 +248,7 @@
         tbody.innerHTML = '';
         
         if (!dados.linhas || dados.linhas.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;">Nenhuma ocorrência localizada.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">Nenhuma ocorrência localizada.</td></tr>';
           return;
         }
 
@@ -255,14 +259,15 @@
           (function(dadosLinha){
             tr.onclick = function(e) {
               if(e.target.tagName !== 'A') {
-                alert("Caso: " + dadosLinha[0] + "\nMotorista: " + dadosLinha[1] + "\nNF: " + dadosLinha[4] + "\nStatus: " + dadosLinha[6]);
+                alert("Caso: " + dadosLinha[0] + "\nMotorista: " + dadosLinha[1] + "\nNF: " + dadosLinha[4] + "\nStatus: " + dadosLinha[6] + "\nObs: " + (dadosLinha[9] || '-'));
               }
             };
           })(linha);
 
           var dataExibicao = linha[7] ? linha[7] : '-';
           var horaExibicao = linha[8] ? linha[8] : '-';
-          var colunaFoto = (linha[9] && linha[9].indexOf('http') === 0) ? '<a href="' + linha[9] + '" target="_blank">Abrir link</a>' : '-';
+          var obsExibicao = linha[9] ? linha[9] : '-';
+          var colunaFoto = (linha[10] && linha[10].indexOf('http') === 0) ? '<a href="' + linha[10] + '" target="_blank">Abrir link</a>' : '-';
 
           tr.innerHTML = '<td><strong>' + linha[0] + '</strong></td>' +
                          '<td>' + (linha[1] || '-') + '</td>' +
@@ -273,6 +278,7 @@
                          '<td>' + (linha[6] || '-') + '</td>' +
                          '<td>' + dataExibicao + '</td>' +
                          '<td>' + horaExibicao + '</td>' +
+                         '<td>' + obsExibicao + '</td>' +
                          '<td>' + colunaFoto + '</td>';
           tbody.appendChild(tr);
         }
@@ -285,10 +291,8 @@
       XLSX.writeFile(livro, "Relatorio_Ocorrencias.xlsx");
     }
 
-    // Inicializa a lista de placas na primeira carga da página
     carregarListaPlacas();
 
-    // Mantém a tabela atualizada a cada 20 segundos se a aba ativa for o Painel PC
     setInterval(function() {
       if (document.getElementById('pag-pc').classList.contains('active')) {
         atualizarPainel();
