@@ -1,129 +1,178 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Ocorrências - Logística</title>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f4f7f6; color: #333; }
-    .navbar { display: flex; background: #2c3e50; padding: 10px; justify-content: center; gap: 15px; }
-    .nav-btn { background: #34495e; color: white; border: none; padding: 10px 20px; cursor: pointer; font-size: 16px; border-radius: 4px; }
+    /* Configurações Globais Básicas e Modernas */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; line-height: 1.6; }
+    
+    /* Barra de Navegação Responsiva */
+    .navbar { display: flex; background: #2c3e50; padding: 10px; justify-content: center; gap: 10px; width: 100%; position: sticky; top: 0; z-index: 1000; }
+    .nav-btn { background: #34495e; color: white; border: none; padding: 12px 20px; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 6px; flex: 1; max-width: 200px; text-align: center; transition: background 0.2s; }
     .nav-btn.active { background: #27ae60; }
-    .container { max-width: 1200px; margin: 20px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .nav-btn:hover { background: #455a64; }
+    .nav-btn.active:hover { background: #219653; }
+
+    /* Container Principal Flexível */
+    .container { width: 100%; max-width: 1200px; margin: 20px auto; padding: 15px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    
     .page { display: none; }
     .page.active { display: block; }
-    .form-group { margin-bottom: 15px; }
-    label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input, select, textarea, button { width: 100%; padding: 10px; box-sizing: border-box; border-radius: 4px; border: 1px solid #ccc; font-size: 15px; }
-    input:disabled, select:disabled { background-color: #e9ecef; color: #495057; cursor: not-allowed; }
-    textarea { resize: vertical; font-family: inherit; }
-    button { background: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; }
-    button:hover { background: #3498db; }
-    .btn-excel { background-color: #27ae60; width: auto; margin-bottom: 15px; display: inline-block; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-    th { background-color: #2c3e50; color: white; }
-    tr:hover { background-color: #f1f1f1; cursor: pointer; }
-    #preview { max-width: 150px; margin-top: 10px; display: none; border-radius: 4px; border: 1px solid #ddd; }
-    .loading { font-weight: bold; color: #e67e22; text-align: center; padding: 10px; display: none; }
+    h2 { margin-bottom: 20px; font-size: 22px; color: #2c3e50; border-bottom: 2px solid #f4f7f6; padding-bottom: 10px; }
+    
+    /* Formulários Otimizados para Toque no Celular */
+    .form-group { margin-bottom: 18px; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; font-size: 14px; color: #4b5563; }
+    input, select, textarea { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 16px; outline: none; background-color: #fff; transition: border-color 0.2s; }
+    input:focus, select:focus, textarea:focus { border-color: #2980b9; box-shadow: 0 0 0 3px rgba(41, 128, 185, 0.1); }
+    input:disabled, select:disabled { background-color: #f3f4f6; color: #6b7280; cursor: not-allowed; border-color: #e5e7eb; }
+    textarea { resize: vertical; min-height: 80px; }
+    
+    /* Botões Grandes e fáceis de clicar no Smartphone */
+    button.btn-block { width: 100%; padding: 14px; background: #2980b9; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 6px; transition: background 0.2s; }
+    button.btn-block:hover { background: #3498db; }
+    button:disabled { background: #9ca3af !important; cursor: not-allowed; }
+    
+    .btn-excel { background-color: #27ae60; width: auto; padding: 10px 20px; margin-bottom: 15px; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-excel:hover { background-color: #219653; }
+    .btn-logout { background-color: #e74c3c; width: auto; padding: 10px 15px; margin-bottom: 15px; color: white; border: none; font-weight: bold; border-radius: 6px; cursor: pointer; float: right; }
+    .btn-logout:hover { background-color: #c0392b; }
+
+    /* Visualização da foto anexada */
+    #preview { max-width: 100%; max-height: 200px; margin-top: 12px; display: none; border-radius: 6px; border: 1px solid #d1d5db; object-fit: contain; }
+    .loading { font-weight: bold; color: #d35400; text-align: center; padding: 12px; display: none; background: #fff3e0; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffe0b2; }
+    
+    /* Tabela com Rolagem Lateral Inteligente para Telas Menores */
+    .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 15px; border: 1px solid #e5e7eb; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; font-size: 14px; background: white; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    th { background-color: #2c3e50; color: white; font-weight: 600; letter-spacing: 0.5px; position: sticky; top: 0; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background-color: #f8fafc; cursor: pointer; }
+    
+    /* Estilo do link da foto na tabela */
+    .photo-link { color: #2980b9; font-weight: bold; text-decoration: none; display: inline-block; padding: 4px 8px; background: #ebf5fb; border-radius: 4px; }
+    .photo-link:hover { text-decoration: underline; background: #d4e6f1; }
+
+    /* Ajustes Finos via Media Queries (Design Responsivo) */
+    @media (max-width: 600px) {
+      .container { padding: 10px; margin: 10px auto; }
+      .card { padding: 15px; }
+      h2 { font-size: 18px; }
+      .nav-btn { font-size: 14px; padding: 10px; }
+      .btn-logout { float: none; width: 100%; text-align: center; margin-top: 10px; margin-bottom: 15px; }
+      .btn-excel { width: 100%; justify-content: center; }
+    }
   </style>
 </head>
 <body>
 
   <div class="navbar">
-    <button class="nav-btn active" onclick="mudarAba('motorista')">📱 Motorista</button>
-    <button class="nav-btn" onclick="mudarAba('pc'); atualizarPainel();">💻 Painel PC</button>
+    <button class="nav-btn active" id="btn-tab-motorista" onclick="mudarAba('motorista')">📱 Motorista</button>
+    <button class="nav-btn" id="btn-tab-pc" onclick="tentarAcessarPainel()">💻 Painel PC</button>
   </div>
 
   <div class="container">
-    
-    <div id="pag-motorista" class="page active">
-      <h2>Registro de Ocorrência (Motorista)</h2>
+    <div class="card">
       
-      <div id="camposNovos">
+      <div id="pag-motorista" class="page active">
+        <h2>Registro de Ocorrência (Motorista)</h2>
+        
+        <div id="camposNovos">
+          <div class="form-group">
+            <label>Selecione a Placa do Veículo:</label>
+            <select id="placa" onchange="autoPreencherMotorista()">
+              <option value="">Carregando placas disponíveis...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nome do Motorista:</label>
+            <input type="text" id="motorista" placeholder="Selecione a placa acima" disabled>
+          </div>
+          <div class="form-group">
+            <label>Tipo de Veículo:</label>
+            <input type="text" id="tipoVeiculo" placeholder="Selecione a placa acima" disabled>
+          </div>
+          <div class="form-group">
+            <label>Número da NF:</label>
+            <input type="number" id="notaFiscal" inputmode="numeric" placeholder="Digite apenas números">
+          </div>
+          <div class="form-group">
+            <label>Série da NF:</label>
+            <input type="number" id="serie" inputmode="numeric" placeholder="Digite a série">
+          </div>
+          <div class="form-group">
+            <label>Anexar Foto da Ocorrência:</label>
+            <input type="file" id="foto" accept="image/*" onchange="visualizarFoto(event)">
+            <img id="preview" alt="Prévia da imagem">
+          </div>
+        </div>
+
         <div class="form-group">
-          <label>Selecione a Placa do Veículo:</label>
-          <select id="placa" onchange="autoPreencherMotorista()">
-            <option value="">Carregando placas disponíveis...</option>
+          <label>Status da Entrega:</label>
+          <select id="status">
+            <option value="Em trânsito">Em trânsito</option>
+            <option value="Entregue">Entregue</option>
+            <option value="Insucesso de Entrega">Insucesso de Entrega</option>
+            <option value="Devolução Total">Devolução Total</option>
           </select>
         </div>
+
         <div class="form-group">
-          <label>Nome do Motorista:</label>
-          <input type="text" id="motorista" placeholder="Selecione a placa acima" disabled>
+          <label>Observações / Detalhes do Caso:</label>
+          <textarea id="observacao" rows="3" placeholder="Insira detalhes da ocorrência (Ex: Cliente recusou por avaria, atraso na descarga, etc.)"></textarea>
         </div>
-        <div class="form-group">
-          <label>Tipo de Veículo:</label>
-          <input type="text" id="tipoVeiculo" placeholder="Selecione a placa acima" disabled>
-        </div>
-        <div class="form-group">
-          <label>Número da NF:</label>
-          <input type="number" id="notaFiscal">
-        </div>
-        <div class="form-group">
-          <label>Série da NF:</label>
-          <input type="number" id="serie">
-        </div>
-        <div class="form-group">
-          <label>Anexar Foto da Ocorrência:</label>
-          <input type="file" id="foto" accept="image/*" onchange="visualizarFoto(event)">
-          <img id="preview" alt="Prévia da imagem">
+
+        <div id="loadingForm" class="loading">Processando e enviando dados, por favor aguarde...</div>
+        <button id="btnEnviar" class="btn-block" onclick="enviarDadosMotorista()">Enviar Informações</button>
+      </div>
+
+      <div id="pag-pc" class="page">
+        <h2>Painel de Controle - Monitoramento</h2>
+        
+        <button class="btn-excel" onclick="exportarExcel()">📊 Gerar Excel</button>
+        <button class="btn-logout" onclick="fazerLogout()">🔒 Sair do Painel</button>
+        
+        <div class="table-responsive">
+          <table id="tabelaOcorrencias">
+            <thead>
+              <tr>
+                <th>ID Caso</th>
+                <th>Motorista</th>
+                <th>Placa</th>
+                <th>Veículo</th>
+                <th>NF</th>
+                <th>Série</th>
+                <th>Status</th>
+                <th>Data</th>
+                <th>Hora</th>
+                <th>Observação</th>
+                <th>Foto</th>
+              </tr>
+            </thead>
+            <tbody id="corpoTabela">
+              <tr><td colspan="11" style="text-align:center;">Carregando dados...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Status da Entrega:</label>
-        <select id="status">
-          <option value="Em trânsito">Em trânsito</option>
-          <option value="Entregue">Entregue</option>
-          <option value="Insucesso de Entrega">Insucesso de Entrega</option>
-          <option value="Devolução Total">Devolução Total</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Observações / Detalhes do Caso:</label>
-        <textarea id="observacao" rows="3" placeholder="Insira detalhes da ocorrência (Ex: Cliente recusou por avaria, atraso na descarga, etc.)"></textarea>
-      </div>
-
-      <div id="loadingForm" class="loading">Processando e enviando dados, por favor aguarde...</div>
-      <button id="btnEnviar" onclick="enviarDadosMotorista()">Enviar Informações</button>
     </div>
-
-    <div id="pag-pc" class="page">
-      <h2>Painel de Controle - Monitoramento</h2>
-      <button class="btn-excel" onclick="exportarExcel()">📊 Gerar Excel</button>
-      
-      <table id="tabelaOcorrencias">
-        <thead>
-          <tr>
-            <th>ID Caso</th>
-            <th>Motorista</th>
-            <th>Placa</th>
-            <th>Veículo</th>
-            <th>NF</th>
-            <th>Série</th>
-            <th>Status</th>
-            <th>Data</th>
-            <th>Hora</th>
-            <th>Observação</th>
-            <th>Foto</th>
-          </tr>
-        </thead>
-        <tbody id="corpoTabela">
-          <tr><td colspan="11">Carregando dados...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
   </div>
 
   <script>
-    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbyhvPMpQ9vF6ZrDv-0k6iTrUN_UDZNOMb0-YUFK2GD58Ki9ePQFT3h8OAxeE6E3b-Be/exec";
+    const URL_API_GOOGLE = "https://script.google.com/macros/s/AKfycbw2Fz6IEJFuE1LZnJC3quHLT_xaGdQQTT2H3AxUiHukGaUfh_cOJo_GzK1YKC228H4M/exec";
 
     var listaGlobalMotoristas = []; 
     var fotoBase64 = "";
     var fotoMimeType = "";
     var fotoNomeArquivo = "";
+    var painelAutenticado = false; 
 
     function mudarAba(aba) {
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -131,13 +180,53 @@
       
       if(aba === 'motorista') {
         document.getElementById('pag-motorista').classList.add('active');
-        document.querySelector("[onclick*='motorista']").classList.add('active');
+        document.getElementById('btn-tab-motorista').classList.add('active');
         carregarListaPlacas();
       } else {
         document.getElementById('pag-pc').classList.add('active');
-        document.querySelector("[onclick*='pc']").classList.add('active');
+        document.getElementById('btn-tab-pc').classList.add('active');
         atualizarPainel();
       }
+    }
+
+    function tentarAcessarPainel() {
+      if (painelAutenticado) {
+        mudarAba('pc');
+        return;
+      }
+      
+      var usuario = prompt("Digite seu Usuário de Acesso:");
+      if (!usuario) return;
+      var senha = prompt("Digite sua Senha:");
+      if (!senha) return;
+      
+      var urlLogin = URL_API_GOOGLE + (URL_API_GOOGLE.includes('?') ? '&' : '?') + 
+                     'acao=login&user=' + encodeURIComponent(usuario) + '&pass=' + encodeURIComponent(senha);
+      
+      document.getElementById('btn-tab-pc').innerText = "⏳ Validando...";
+      
+      fetch(urlLogin)
+      .then(res => res.json())
+      .then(res => {
+        document.getElementById('btn-tab-pc').innerText = "💻 Painel PC";
+        if (res.autorizado) {
+          painelAutenticado = true;
+          mudarAba('pc');
+        } else {
+          alert(res.msg || "Acesso negado.");
+        }
+      })
+      .catch(err => {
+        document.getElementById('btn-tab-pc').innerText = "💻 Painel PC";
+        console.error(err);
+        alert("Erro de comunicação com o servidor de senhas.");
+      });
+    }
+
+    function fazerLogout() {
+      painelAutenticado = false;
+      alert("Painel bloqueado com sucesso.");
+      mudarAba('motorista');
     }
 
     function carregarListaPlacas() {
@@ -146,11 +235,7 @@
       fetch(urlConsulta)
       .then(res => res.json())
       .then(dados => {
-        if (!dados.motoristas) {
-          console.error("Dados de motoristas não encontrados.");
-          return;
-        }
-        
+        if (!dados.motoristas) return;
         listaGlobalMotoristas = dados.motoristas;
         var selectPlaca = document.getElementById('placa');
         selectPlaca.innerHTML = '<option value="">-- Selecione sua Placa --</option>';
@@ -160,10 +245,7 @@
             selectPlaca.innerHTML += '<option value="' + item[0] + '">' + item[0] + '</option>';
           }
         });
-      }).catch(err => {
-        console.error("Erro crítico ao carregar placas:", err);
-        document.getElementById('placa').innerHTML = '<option value="">Erro ao carregar placas</option>';
-      });
+      }).catch(err => console.error("Erro ao carregar placas:", err));
     }
 
     function autoPreencherMotorista() {
@@ -178,7 +260,6 @@
       }
       
       var cadastroEncontrado = listaGlobalMotoristas.find(item => item[0] === placaSelecionada);
-      
       if (cadastroEncontrado) {
         inputMotorista.value = cadastroEncontrado[1]; 
         inputVeiculo.value = cadastroEncontrado[2];   
@@ -190,8 +271,9 @@
       if (file) {
         var reader = new FileReader();
         reader.onload = function(e) {
-          document.getElementById('preview').src = e.target.result;
-          document.getElementById('preview').style.display = 'block';
+          var img = document.getElementById('preview');
+          img.src = e.target.result;
+          img.style.display = 'block';
           var partes = e.target.result.split(',');
           fotoBase64 = partes[1];
           fotoMimeType = file.type;
@@ -241,6 +323,8 @@
     }
 
     function atualizarPainel() {
+      if (!painelAutenticado) return;
+      
       fetch(URL_API_GOOGLE)
       .then(res => res.json())
       .then(dados => {
@@ -253,7 +337,7 @@
         }
 
         for (var i = dados.linhas.length - 1; i >= 0; i--) {
-          var linha = dados.linhas[i];
+          var line = dados.linhas[i];
           var tr = document.createElement('tr');
           
           (function(dadosLinha){
@@ -262,20 +346,20 @@
                 alert("Caso: " + dadosLinha[0] + "\nMotorista: " + dadosLinha[1] + "\nNF: " + dadosLinha[4] + "\nStatus: " + dadosLinha[6] + "\nObs: " + (dadosLinha[9] || '-'));
               }
             };
-          })(linha);
+          })(line);
 
-          var dataExibicao = linha[7] ? linha[7] : '-';
-          var horaExibicao = linha[8] ? linha[8] : '-';
-          var obsExibicao = linha[9] ? linha[9] : '-';
-          var colunaFoto = (linha[10] && linha[10].indexOf('http') === 0) ? '<a href="' + linha[10] + '" target="_blank">Abrir link</a>' : '-';
+          var dataExibicao = line[7] ? line[7] : '-';
+          var horaExibicao = line[8] ? line[8] : '-';
+          var obsExibicao = line[9] ? line[9] : '-';
+          var colunaFoto = (line[10] && line[10].indexOf('http') === 0) ? '<a href="' + line[10] + '" target="_blank" class="photo-link">Abrir foto</a>' : '-';
 
-          tr.innerHTML = '<td><strong>' + linha[0] + '</strong></td>' +
-                         '<td>' + (linha[1] || '-') + '</td>' +
-                         '<td>' + (linha[2] || '-') + '</td>' +
-                         '<td>' + (linha[3] || '-') + '</td>' +
-                         '<td>' + (linha[4] || '-') + '</td>' +
-                         '<td>' + (linha[5] || '-') + '</td>' +
-                         '<td>' + (linha[6] || '-') + '</td>' +
+          tr.innerHTML = '<td><strong>' + line[0] + '</strong></td>' +
+                         '<td>' + (line[1] || '-') + '</td>' +
+                         '<td>' + (line[2] || '-') + '</td>' +
+                         '<td>' + (line[3] || '-') + '</td>' +
+                         '<td>' + (line[4] || '-') + '</td>' +
+                         '<td>' + (line[5] || '-') + '</td>' +
+                         '<td>' + line[6] + '</td>' +
                          '<td>' + dataExibicao + '</td>' +
                          '<td>' + horaExibicao + '</td>' +
                          '<td>' + obsExibicao + '</td>' +
@@ -294,7 +378,7 @@
     carregarListaPlacas();
 
     setInterval(function() {
-      if (document.getElementById('pag-pc').classList.contains('active')) {
+      if (document.getElementById('pag-pc').classList.contains('active') && painelAutenticado) {
         atualizarPainel();
       }
     }, 20000);
